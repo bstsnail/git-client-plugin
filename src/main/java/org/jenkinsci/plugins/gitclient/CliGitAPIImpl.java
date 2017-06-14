@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
@@ -922,6 +923,7 @@ public class CliGitAPIImpl extends LegacyCompatibleGitAPIImpl {
             boolean recursive                      = false;
             boolean remoteTracking                 = false;
             String  ref                            = null;
+            boolean parentCredentials              = false;
             Map<String, String> submodBranch   = new HashMap<String, String>();
             public Integer timeout;
 
@@ -932,6 +934,11 @@ public class CliGitAPIImpl extends LegacyCompatibleGitAPIImpl {
 
             public SubmoduleUpdateCommand remoteTracking(boolean remoteTracking) {
                 this.remoteTracking = remoteTracking;
+                return this;
+            }
+
+            public SubmoduleUpdateCommand parentCredentials(boolean parentCredentials) {
+                this.parentCredentials = parentCredentials;
                 return this;
             }
 
@@ -977,7 +984,64 @@ public class CliGitAPIImpl extends LegacyCompatibleGitAPIImpl {
                         args.add("--reference", ref);
                 }
 
-                launchCommandIn(args, workspace, environment, timeout);
+
+                // We need to call submodule update for each configured
+                // submodule. Note that we can't reliably depend on the
+                // getSubmodules() since it is possible "HEAD" doesn't exist,
+                // and we don't really want to recursively find all possible
+                // submodules, just the ones for this super project. Thus,
+                // loop through the config output and parse it for configured
+                // modules.
+                String cfgOutput = null;
+                try {
+                    // We might fail if we have no modules, so catch this
+                    // exception and just return.
+                    cfgOutput = launchCommand("config", "-f", ".gitmodules", "--get-regexp", "^submodule\\.(.*)\\.url");
+                } catch (GitException e) {
+                    listener.error("No submodules found.");
+                    return;
+                }
+
+                // Use a matcher to find each configured submodule name, and
+                // then run the submodule update command with the provided
+                // path.
+                Pattern pattern = Pattern.compile("^submodule\\.(.*)\\.url", Pattern.MULTILINE);
+                Matcher matcher = pattern.matcher(cfgOutput);
+                while (matcher.find()) {
+                    ArgumentListBuilder perModuleArgs = args.clone();
+                    String sModuleName = matcher.group(1);
+
+                    // Find the URL for this submodule
+                    URIish urIish = null;
+                    try {
+                        urIish = new URIish(getSubmoduleUrl(sModuleName));
+                    } catch (URISyntaxException e) {
+                        listener.error("Invalid repository for " + sModuleName);
+                        throw new GitException("Invalid repository for " + sModuleName);
+                    }
+
+                    // Find credentials for this URL
+                    StandardCredentials cred = credentials.get(urIish.toPrivateString());
+                    if (parentCredentials) {
+                        String parentUrl = getRemoteUrl(getDefaultRemote());
+                        URIish parentUri = null;
+                        try {
+                            parentUri = new URIish(parentUrl);
+                        } catch (URISyntaxException e) {
+                            listener.error("Invalid URI for " + parentUrl);
+                            throw new GitException("Invalid URI for " + parentUrl);
+                        }
+                        cred = credentials.get(parentUri.toPrivateString());
+
+                    }
+                    if (cred == null) cred = defaultCredentials;
+
+                    // Find the path for this submodule
+                    String sModulePath = getSubmodulePath(sModuleName);
+
+                    perModuleArgs.add(sModulePath);
+                    launchCommandWithCredentials(perModuleArgs, workspace, cred, urIish, timeout);
+                }
             }
         };
     }
@@ -1035,6 +1099,19 @@ public class CliGitAPIImpl extends LegacyCompatibleGitAPIImpl {
      */
     public void setSubmoduleUrl(String name, String url) throws GitException, InterruptedException {
         launchCommand( "config", "submodule."+name+".url", url );
+    }
+
+    /**
+     * Get submodule path.
+     *
+     * @param name submodule name whose path is returned
+     * @return path to submodule
+     * @throws GitException on git error
+     * @throws InterruptedException if interrupted
+     */
+    public @CheckForNull String getSubmodulePath(String name) throws GitException, InterruptedException {
+        String result = launchCommand( "config", "-f", ".gitmodules", "--get", "submodule."+name+".path" );
+        return StringUtils.trim(firstLine(result));
     }
 
     /** {@inheritDoc} */

@@ -9,7 +9,7 @@
   </parent>
 
   <groupId>org.jenkins-ci.plugins</groupId>
-  <artifactId>git-client</artifactId>
+  <artifactId>git-client-t1</artifactId>
   <version>1.21.0</version>
   <packaging>hpi</packaging>
 
@@ -138,12 +138,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.google.code.findbugs</groupId>
-      <artifactId>jsr305</artifactId>
-      <version>3.0.1</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>ssh-credentials</artifactId>
       <version>1.12</version>
@@ -170,12 +164,6 @@
       <artifactId>opencsv</artifactId>
       <version>2.3</version>
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.code.findbugs</groupId>
-      <artifactId>annotations</artifactId>
-      <version>3.0.1u2</version>
-      <scope>provided</scope>
     </dependency>
   </dependencies>
 
@@ -222,27 +210,6 @@
         <artifactId>maven-hpi-plugin</artifactId>
         <version>${maven-hpi-plugin.version}</version>
         <extensions>true</extensions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>findbugs-maven-plugin</artifactId>
-        <version>${findbugs-maven-plugin.version}</version>
-        <configuration>
-          <skip>${skipFindbugs}</skip>
-          <excludeFilterFile>src/findbugs/excludesFilter.xml</excludeFilterFile>
-          <failOnError>${maven.findbugs.failure.strict}</failOnError>
-          <xmlOutput>true</xmlOutput>
-          <findbugsXmlWithMessages>true</findbugsXmlWithMessages>
-        </configuration>
-        <executions>
-          <execution>
-            <id>run-findbugs</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>

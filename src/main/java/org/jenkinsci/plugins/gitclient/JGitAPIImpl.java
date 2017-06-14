@@ -2137,6 +2137,7 @@ public class JGitAPIImpl extends LegacyCompatibleGitAPIImpl {
             boolean recursive      = false;
             boolean remoteTracking = false;
             String  ref            = null;
+            boolean parentCredentials = false;
 
             public SubmoduleUpdateCommand recursive(boolean recursive) {
                 this.recursive = recursive;
@@ -2145,6 +2146,11 @@ public class JGitAPIImpl extends LegacyCompatibleGitAPIImpl {
 
             public SubmoduleUpdateCommand remoteTracking(boolean remoteTracking) {
                 this.remoteTracking = remoteTracking;
+                return this;
+            }
+
+            public SubmoduleUpdateCommand parentCredentials(boolean parentCredentials) {
+                this.parentCredentials = parentCredentials;
                 return this;
             }
 
